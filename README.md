@@ -1,0 +1,73 @@
+## Aero Adventure — Plataforma estilo Mario en Canvas
+
+Juego en HTML5 Canvas con scroll lateral, bloques interactivos, enemigos simples, parallax y soporte de sprites tipo retro.
+
+### Demo local
+- Abre `index.html` en tu navegador (doble clic) o sirve la carpeta con un servidor estático.
+- Recomendado para desarrollo: extensión Live Server o `npx serve .`.
+
+### Controles
+- Izquierda/Derecha: mover
+- Z o Barra espaciadora: saltar y, en el aire, mantener para planear/volar mientras haya energía
+- Shift o X: correr
+- P: pausar/reanudar
+- R: reiniciar
+
+### Características
+- Scroll lateral con cámara siguiendo al jugador
+- Barra de vuelo con energía recargable al tocar el suelo
+- Bloques `?` que otorgan monedas y quedan vacíos; bloques de ladrillo sólidos
+- Enemigos con patrulla básica; puedes pisarlos para eliminarlos
+- Bandera de fin de nivel
+- Fondo con parallax (carga `paisaje.png` o `paisaje.jpg`)
+- Render sin suavizado para pixel art (image smoothing off)
+
+### Sprites del jugador
+- El archivo por defecto para el personaje es `image.png` (puedes reemplazarlo con tu sprite). Si usas `caminar.png`, renómbralo a `image.png` o ajusta el código.
+- Por defecto se asume una grilla 4 columnas × 3 filas:
+  - Caminar: fila 0 → frames `[0,1,2,3]`
+  - Idle: `8` (fila 2, columna 0)
+- Puedes ajustar en tiempo real desde la consola del navegador:
+
+```js
+__GAME__.setPlayerSprite({ cols: 4, rows: 3, frameW: 64, frameH: 64 });
+__GAME__.setPlayerSprite({ animations: { idle: [8], walk: [0,1,2,3] }, speed: 6 });
+```
+
+### Fondo (parallax)
+- Coloca tu imagen como `paisaje.png` (fallback automático a `paisaje.jpg`).
+- Parámetros ajustables en consola:
+
+```js
+__GAME__.state.bg.speed = 0.35;
+const bg = __GAME__.state.bg;
+bg.tileW = Math.ceil(bg.image.naturalWidth * bg.scale);
+bg.tileH = Math.ceil(bg.image.naturalHeight * bg.scale);
+```
+
+### Física y vuelo
+- Parámetros principales (accesibles con `__GAME__.state.player`): `gravity`, `jump`, `flyPower`, `maxAscendSpeed`.
+- Energía de vuelo: `flight`, `flightMax` (se muestra en HUD y se recarga en el suelo).
+
+### Estructura
+- `index.html`: código del juego (JS inline para simplicidad)
+- `image.png`: spritesheet del jugador
+- `paisaje.png`/`paisaje.jpg`: fondo con parallax
+- `caminar.png` (opcional): otro asset de ejemplo
+
+### Desarrollo
+1) Edita `index.html` y recarga el navegador.
+2) Usa `window.__GAME__` para depurar:
+
+```js
+__GAME__.state;        // estado completo
+__GAME__.resetGame();  // reiniciar
+```
+
+### Deploy en GitHub Pages (opcional)
+1) Crea un repo y sube los archivos.
+2) Activa GitHub Pages en la rama `main`, carpeta root.
+3) Accede a `https://<tu-usuario>.github.io/<tu-repo>/`.
+
+### Licencia
+MIT. Asegúrate de tener derechos para los sprites e imágenes que utilices.

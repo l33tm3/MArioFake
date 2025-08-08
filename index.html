@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Aero Adventure (fix DOM + tests)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin:0; padding:0; background:#121212; color:#eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    .hud { display:flex; gap:24px; align-items:center; padding:10px 14px; background:#1e1e1e; position:sticky; top:0; z-index:2; border-bottom:1px solid #2a2a2a; }
+    .hud .item { font-weight:600; }
+    .bar { width:200px; height:10px; background:#2a2a2a; border-radius:6px; overflow:hidden; display:inline-block; vertical-align:middle; }
+    .bar > div { height:100%; width:0%; background:#4caf50; }
+    .wrap { display:flex; justify-content:center; padding:10px; }
+    canvas { background:#202533; border:1px solid #2a2f45; display:block; }
+    .tests { padding:10px 14px; background:#0f0f0f; border-top:1px solid #2a2a2a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .tests b { color:#9cdcfe; }
+    .pass { color:#8bc34a; }
+    .fail { color:#ff6e6e; }
+    .hint { opacity:.8; font-size:.95em; }
+  </style>
+</head>
+<body>
+  <div class="hud" id="hud">
+    <div class="item">🟡 Monedas: <span id="coins">0</span></div>
+    <div class="item">🏆 Puntaje: <span id="score">0</span></div>
+    <div class="item">
+      ✈️ Vuelo: <span id="flightText">100%</span>
+      <span class="bar" title="Energía de vuelo">
+        <div id="flightBar"></div>
+      </span>
+    </div>
+    <div class="item hint">Controles: ← → mover, Z/Space saltar/volar, Shift/X correr, P pausa, R reiniciar</div>
+  </div>
+
+  <div class="wrap">
+    <canvas id="game" width="940" height="520"></canvas>
+  </div>
+
+  <div class="tests">
+    <b>Tests</b>
+    <pre id="test-output">Ejecutando tests…</pre>
+  </div>
+
+  <script>
+  (function() {
+    'use strict';
+
+    // --- Utilidades DOM seguras ------------------------------------------------
+    function byId(id) {
+      const el = document.getElementById(id);
+      if (!el) throw new Error("Elemento #" + id + " no existe en el DOM");
+      return el;
+    }
+
+    function setText(el, value) {
+      // Evitamos encadenar getElementById(...).textContent = ...
+      // Siempre actuamos sobre una referencia estable del elemento.
+      el.textContent = String(value);
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // --- Referencias de UI (una sola vez) -----------------------------------
+      const UI = {
+        coins: byId('coins'),
+        score: byId('score'),
+        flightText: byId('flightText'),
+        flightBar: byId('flightBar'),
+        canvas: byId('game'),
+        testsOut: byId('test-output')
+      };
+
+      // --- Estado del juego ----------------------------------------------------
+      const ctx = UI.canvas.getContext('2d', { alpha: false });
+      // Mejor para pixel art
+      ctx.imageSmoothingEnabled = false;
+      const W = UI.canvas.width, H = UI.canvas.height;
+      // Subimos el suelo lógico para que el personaje quede más alto en pantalla
+      const groundY = H - 85;
+      const skyY = 12; // techo lógico para no salir por arriba
+
+      const state = {
+        running: true,
+        frames: 0,
+        keys: Object.create(null),
+        cameraX: 0,
+        worldWidth: 3200,
+        endX: 3000,
+        bg: {
+          image: null,
+          loaded: false,
+          speed: 0.35,
+          scale: 1,
+          tileW: 0,
+          tileH: 0
+        },
+        player: {
+          x: 120, y: groundY - 40, w: 28, h: 40,
+          vx: 0, vy: 0,
+          speed: 2.0,
+          onGround: true,
+          facing: 1,
+          coins: 0,
+          score: 0,
+          flight: 100,
+          flightMax: 100,
+          flyPower: 0.5,      // empuje vertical por frame cuando vuela (más suave)
+          gravity: 0.5,
+          maxAscendSpeed: 3.2,
+          jump: 9.0
+        },
+        sprite: {
+          image: null,
+          loaded: false,
+          frameW: null,
+          frameH: null,
+          cols: 1,
+          rows: 1,
+          frameIndex: 0,
+          animations: {
+            // Índices pensados para hoja 4x3 (fila 0: caminar, fila 2 col 0: idle)
+            idle: [8],
+            walk: [0,1,2,3]
+          },
+          speed: 6,
+          current: 'idle'
+        },
+        coins: [
+          {x: 360, y: groundY - 120, r: 10, taken:false},
+          {x: 520, y: groundY - 60,  r: 10, taken:false},
+          {x: 780, y: groundY - 160, r: 10, taken:false},
+          {x: 1200, y: groundY - 120, r: 10, taken:false},
+          {x: 1400, y: groundY - 160, r: 10, taken:false},
+          {x: 1650, y: groundY - 100, r: 10, taken:false}
+        ],
+        platforms: [
+          {x: 300, y: groundY - 20, w: 160, h: 12},
+          {x: 700, y: groundY - 70, w: 120, h: 12},
+          {x: 1100, y: groundY - 40, w: 180, h: 12},
+          {x: 1500, y: groundY - 90, w: 160, h: 12},
+          {x: 1900, y: groundY - 60, w: 140, h: 12},
+          {x: 2300, y: groundY - 110, w: 200, h: 12}
+        ],
+        blocks: [
+          {x: 600,  y: groundY - 120, w: 24, h: 24, type: 'question', state: 'full', initState: 'full'},
+          {x: 624,  y: groundY - 120, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'},
+          {x: 648,  y: groundY - 120, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'},
+          {x: 1200, y: groundY - 160, w: 24, h: 24, type: 'question', state: 'full', initState: 'full'},
+          {x: 1450, y: groundY - 200, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'}
+        ],
+        enemies: [
+          {x: 900,  y: groundY - 24, w: 24, h: 24, vx: -0.6, alive: true, patrolLeft: 860, patrolRight: 1000, sx: 900,  sy: groundY - 24, svx: -0.6},
+          {x: 1700, y: groundY - 24, w: 24, h: 24, vx: -0.7, alive: true, patrolLeft: 1660, patrolRight: 1780, sx: 1700, sy: groundY - 24, svx: -0.7}
+        ]
+      };
+
+      // Cargar sprite del jugador (image.png en raíz)
+      const playerImg = new Image();
+      playerImg.onload = () => {
+        state.sprite.loaded = true;
+        state.sprite.image = playerImg;
+        // Intento por defecto para esta hoja: 4 columnas x 3 filas (12 frames)
+        if (!state.sprite.cols) state.sprite.cols = 4;
+        if (!state.sprite.rows) state.sprite.rows = 3;
+        if (!state.sprite.frameW) state.sprite.frameW = Math.floor(playerImg.naturalWidth / state.sprite.cols);
+        if (!state.sprite.frameH) state.sprite.frameH = Math.floor(playerImg.naturalHeight / state.sprite.rows);
+      };
+      playerImg.onerror = () => { console.warn('No se pudo cargar \'image.png\'. Usando rectángulo por defecto.'); };
+      playerImg.src = 'image.png';
+
+      // Cargar fondo (paisaje.png o paisaje.jpg)
+      const bgImg = new Image();
+      const tryJpgIfPngFails = () => {
+        const tryJpg = new Image();
+        tryJpg.onload = () => {
+          state.bg.loaded = true;
+          state.bg.image = tryJpg;
+          state.bg.scale = UI.canvas.height / tryJpg.naturalHeight;
+          state.bg.tileW = Math.ceil(tryJpg.naturalWidth * state.bg.scale);
+          state.bg.tileH = Math.ceil(tryJpg.naturalHeight * state.bg.scale);
+        };
+        tryJpg.onerror = () => { console.warn("No se pudo cargar 'paisaje.png' ni 'paisaje.jpg'. Se usará color de fondo."); };
+        tryJpg.src = 'paisaje.jpg';
+      };
+      bgImg.onload = () => {
+        state.bg.loaded = true;
+        state.bg.image = bgImg;
+        state.bg.scale = UI.canvas.height / bgImg.naturalHeight;
+        state.bg.tileW = Math.ceil(bgImg.naturalWidth * state.bg.scale);
+        state.bg.tileH = Math.ceil(bgImg.naturalHeight * state.bg.scale);
+      };
+      bgImg.onerror = tryJpgIfPngFails;
+      bgImg.src = 'paisaje.png';
+
+      // --- Input ----------------------------------------------------------------
+      const kmap = {
+        'ArrowLeft':'left','ArrowRight':'right',
+        'a':'left','d':'right',
+        ' ':'jump','Space':'jump','Spacebar':'jump','z':'jump','Z':'jump',
+        'Shift':'run','x':'run','X':'run',
+        'r':'reset','R':'reset','p':'pause','P':'pause'
+      };
+      window.addEventListener('keydown', (e) => {
+        const mappedKey = kmap[e.key];
+        if (mappedKey) {
+          state.keys[mappedKey] = true;
+          // Evitar el scroll del navegador cuando se usa la tecla de salto
+          if (mappedKey === 'jump') e.preventDefault();
+        }
+      });
+      window.addEventListener('keyup', (e) => { const k=kmap[e.key]; if(k){ state.keys[k]=false; }});
+
+      // --- Helpers de juego ------------------------------------------------------
+      function addCoins(n){
+        state.player.coins += n;
+        state.player.score += 100*n;
+        setText(UI.coins, state.player.coins);
+        setText(UI.score, state.player.score);
+      }
+
+      function clampFlight(){
+        const p = state.player;
+        p.flight = clamp(p.flight, 0, p.flightMax);
+      }
+
+      function resetGame(){
+        const p = state.player;
+        p.x = 120; p.y = groundY - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
+        p.coins = 0; p.score = 0; p.flight = p.flightMax;
+        for (const c of state.coins) c.taken = false;
+        for (const b of state.blocks) b.state = b.initState;
+        for (const e of state.enemies){ e.x = e.sx; e.y = e.sy; e.vx = e.svx; e.alive = true; }
+        state.cameraX = 0;
+        setText(UI.coins, p.coins);
+        setText(UI.score, p.score);
+        updateFlightUI();
+      }
+
+      function updateFlightUI(){
+        const p = state.player;
+        clampFlight();
+        const pct = Math.round((p.flight / p.flightMax) * 100);
+        setText(UI.flightText, pct + '%');
+        UI.flightBar.style.width = pct + '%';
+      }
+
+      function rectsOverlap(ax,ay,aw,ah, bx,by,bw,bh){
+        return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+      }
+
+      // --- Loop -----------------------------------------------------------------
+      function step(){
+        if (!state.running) { requestAnimationFrame(step); return; }
+        state.frames++;
+
+        const p = state.player;
+        const run = state.keys.run ? 1.5 : 1.0;
+        p.vx = 0;
+        if (state.keys.left)  p.vx = -p.speed * run;
+        if (state.keys.right) p.vx =  p.speed * run;
+        if (state.keys.left && !state.keys.right) p.facing = -1;
+        else if (state.keys.right && !state.keys.left) p.facing = 1;
+
+        // Saltar
+        if (state.keys.jump && p.onGround){
+          p.vy = -p.jump;
+          p.onGround = false;
+        }
+
+        // Gravedad + vuelo
+        if (!p.onGround){
+          // Volar (planear/aletear) si queda energía
+          if (state.keys.jump && p.flight > 0){
+            p.vy -= p.flyPower;    // empuje hacia arriba
+            p.flight -= 0.6;       // gasta energía
+          }
+          p.vy += p.gravity;       // gravedad
+          // Limitar velocidad vertical ascendente
+          if (p.vy < -p.maxAscendSpeed) p.vy = -p.maxAscendSpeed;
+        }
+
+        // Movimiento
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Límites del mundo
+        p.x = clamp(p.x, 0, state.worldWidth - p.w);
+
+        // Colisiones con suelo y techo
+        if (p.y + p.h >= groundY){
+          p.y = groundY - p.h;
+          p.vy = 0;
+          if (!p.onGround){
+            p.onGround = true;
+          }
+        } else {
+          p.onGround = false;
+        }
+        if (p.y < skyY){
+          p.y = skyY;
+          if (p.vy < 0) p.vy = 0;
+        }
+
+        // Recarga de vuelo en el suelo
+        if (p.onGround){
+          p.flight += 0.8;
+          clampFlight();
+        }
+        updateFlightUI();
+
+        // Colisiones con plataformas y bloques (tope superior sencillo)
+        const solids = state.platforms.concat(state.blocks);
+        for (const s of solids){
+          if (rectsOverlap(p.x, p.y, p.w, p.h, s.x, s.y, s.w, s.h)){
+            // Cae desde arriba
+            if (p.vy >= 0 && p.y + p.h - p.vy <= s.y){
+              p.y = s.y - p.h;
+              p.vy = 0;
+              p.onGround = true;
+            }
+          }
+        }
+
+        // Golpe desde abajo a bloques
+        if (p.vy < 0){
+          for (const b of state.blocks){
+            if (rectsOverlap(p.x, p.y, p.w, p.h, b.x, b.y, b.w, b.h)){
+              if (p.y <= b.y + b.h && p.y + p.h >= b.y + b.h){
+                // Reposicionar debajo del bloque y cancelar salto
+                p.y = b.y + b.h;
+                p.vy = 0;
+                // Interacciones
+                if (b.type === 'question' && b.state !== 'empty'){
+                  addCoins(1);
+                  b.state = 'empty';
+                }
+                // Los ladrillos quedan sólidos sin romperse en esta versión
+              }
+            }
+          }
+        }
+
+        // IA básica de enemigos (patrulla horizontal)
+        for (const e of state.enemies){
+          if (!e.alive) continue;
+          e.x += e.vx;
+          if (e.x < e.patrolLeft){ e.x = e.patrolLeft; e.vx *= -1; }
+          if (e.x + e.w > e.patrolRight){ e.x = e.patrolRight - e.w; e.vx *= -1; }
+          // Colisión con jugador
+          if (rectsOverlap(p.x, p.y, p.w, p.h, e.x, e.y, e.w, e.h)){
+            const stompFromAbove = p.vy > 0 && (p.y + p.h - p.vy) <= e.y;
+            if (stompFromAbove){
+              e.alive = false;
+              p.vy = -6; // rebote
+              state.player.score += 200;
+              setText(UI.score, state.player.score);
+            } else {
+              // Daño simple: reiniciar
+              resetGame();
+            }
+          }
+        }
+
+        // Actualizar cámara (scroll lateral)
+        state.cameraX = clamp(p.x - W * 0.4, 0, Math.max(0, state.worldWidth - W));
+
+        // Fin de nivel
+        if (p.x >= state.endX){
+          state.running = false;
+          UI.testsOut.textContent += '\nNivel completado!';
+        }
+
+        // Animación de sprite (caminar/idle)
+        const spr = state.sprite;
+        const totalFrames = (spr.cols || 1) * (spr.rows || 1);
+        if (spr.loaded && totalFrames > 0){
+          const movingOnGround = p.onGround && Math.abs(p.vx) > 0.01;
+          spr.current = movingOnGround ? 'walk' : 'idle';
+          const seq = spr.animations[spr.current] || [0];
+          const idx = Math.floor(state.frames / spr.speed) % seq.length;
+          spr.frameIndex = seq[idx];
+        }
+
+        // Recoger monedas
+        for (const c of state.coins){
+          if (!c.taken){
+            const dx = (p.x + p.w/2) - c.x;
+            const dy = (p.y + p.h/2) - c.y;
+            if (Math.hypot(dx,dy) < c.r + Math.max(p.w,p.h)/2 * 0.6){
+              c.taken = true;
+              addCoins(1);
+            }
+          }
+        }
+
+        // Reinicio / pausa (conmutar)
+        if (state.keys.reset){ resetGame(); state.keys.reset=false; }
+        if (state.keys.pause){ state.running = !state.running; state.keys.pause=false; }
+
+        // Render
+        draw();
+        requestAnimationFrame(step);
+      }
+
+      function draw(){
+        const camX = state.cameraX || 0;
+        // Fondo (parallax con mosaico)
+        if (state.bg.loaded && state.bg.image){
+          const s = state.bg;
+          const tileW = s.tileW || W;
+          const bOff = -Math.floor((state.cameraX * s.speed) % tileW);
+          // Pintar suficiente para cubrir el ancho del canvas
+          for (let x = bOff - tileW; x < W + tileW; x += tileW){
+            ctx.drawImage(s.image, 0, 0, s.image.naturalWidth, s.image.naturalHeight, x, 0, tileW, H);
+          }
+        } else {
+          // Fallback sólido si no hay imagen
+          ctx.fillStyle = '#1a2030';
+          ctx.fillRect(0,0,W,H);
+        }
+
+        // Sin dibujo de suelo sólido: se ve el paisaje completo
+
+        // Plataformas
+        ctx.fillStyle = '#49617a';
+        for (const plat of state.platforms){
+          const vx = Math.round(plat.x - camX);
+          if (vx + plat.w < 0 || vx > W) continue;
+          ctx.fillRect(vx, plat.y, plat.w, plat.h);
+        }
+
+        // Bloques
+        for (const b of state.blocks){
+          const vx = Math.round(b.x - camX);
+          if (vx + b.w < 0 || vx > W) continue;
+          if (b.type === 'question'){
+            ctx.fillStyle = (b.state === 'empty') ? '#5c5c5c' : '#d4a133';
+          } else {
+            ctx.fillStyle = '#8d6e63';
+          }
+          ctx.fillRect(vx, b.y, b.w, b.h);
+        }
+
+        // Monedas
+        for (const c of state.coins){
+          if (!c.taken){
+            const vx = Math.round(c.x - camX);
+            if (vx + c.r < 0 || vx - c.r > W) continue;
+            ctx.beginPath();
+            ctx.arc(vx, c.y, c.r, 0, Math.PI*2);
+            ctx.fillStyle = '#f4d03f';
+            ctx.fill();
+            ctx.strokeStyle = '#c9a227';
+            ctx.stroke();
+          }
+        }
+
+        // Jugador
+        const p = state.player;
+        const spr = state.sprite;
+        const drawX = Math.round(p.x - camX);
+        if (spr.loaded && spr.image){
+          const fw = spr.frameW || spr.image.naturalWidth;
+          const fh = spr.frameH || spr.image.naturalHeight;
+          const cols = spr.cols || 1;
+          const sx = (spr.frameIndex % cols) * fw;
+          const sy = Math.floor(spr.frameIndex / cols) * fh;
+          ctx.save();
+          if (p.facing === -1){
+            ctx.translate(drawX + p.w, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(spr.image, sx, sy, fw, fh, 0, p.y, p.w, p.h);
+          } else {
+            ctx.drawImage(spr.image, sx, sy, fw, fh, drawX, p.y, p.w, p.h);
+          }
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#90caf9';
+          ctx.fillRect(drawX, p.y, p.w, p.h);
+        }
+
+        // Enemigos
+        for (const e of state.enemies){
+          if (!e.alive) continue;
+          const vx = Math.round(e.x - camX);
+          if (vx + e.w < 0 || vx > W) continue;
+          ctx.fillStyle = '#e57373';
+          ctx.fillRect(vx, e.y, e.w, e.h);
+        }
+
+        // Meta (bandera/polo)
+        const flagX = Math.round(state.endX - camX);
+        if (flagX > -10 && flagX < W + 10){
+          ctx.fillStyle = '#cfd8dc';
+          ctx.fillRect(flagX, groundY - 140, 6, 140);
+          ctx.fillStyle = '#4dd0e1';
+          ctx.beginPath();
+          ctx.moveTo(flagX + 6, groundY - 140);
+          ctx.lineTo(flagX + 6 + 24, groundY - 130);
+          ctx.lineTo(flagX + 6, groundY - 120);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Inicializar HUD con valores actuales
+      setText(UI.coins, state.player.coins);
+      setText(UI.score, state.player.score);
+      updateFlightUI();
+
+      // Iniciar
+      requestAnimationFrame(step);
+
+      // --- Test Runner ----------------------------------------------------------
+      (function runTests(){
+        const log = (name, ok, err) => {
+          const line = (ok ? '✔️ ' : '❌ ') + name + (ok ? '' : ' -> ' + err);
+          UI.testsOut.textContent += '\n' + (ok ? line : line);
+          const span = document.createElement('span');
+          span.className = ok ? 'pass' : 'fail';
+          span.textContent = line;
+          UI.testsOut.appendChild(span);
+        };
+
+        function t(name, fn){
+          try { fn(); log(name, true); }
+          catch(e){ log(name, false, e.message || String(e)); }
+        }
+
+        // Tests mínimos de DOM/UI
+        t('Existe #coins', () => { if (!(UI.coins instanceof HTMLElement)) throw new Error('No existe #coins'); });
+        t('Existe #score', () => { if (!(UI.score instanceof HTMLElement)) throw new Error('No existe #score'); });
+        t('Existe barra de vuelo', () => { if (!(UI.flightBar instanceof HTMLElement)) throw new Error('No existe #flightBar'); });
+
+        // Test de actualización de texto segura
+        t('setText actualiza #coins sin errores', () => {
+          setText(UI.coins, '7');
+          if (UI.coins.textContent !== '7') throw new Error('textContent no coincide');
+        });
+
+        // Test de lógica de monedas -> UI
+        t('addCoins incrementa estado y HUD', () => {
+          const before = state.player.coins;
+          addCoins(1);
+          if (state.player.coins !== before + 1) throw new Error('Estado coins no incrementó');
+          if (UI.coins.textContent !== String(state.player.coins)) throw new Error('HUD coins no sincronizado');
+        });
+
+        // Test de límites de vuelo
+        t('clampFlight limita a [0, flightMax]', () => {
+          state.player.flight = -5; clampFlight();
+          if (state.player.flight !== 0) throw new Error('No limitó a 0');
+          state.player.flight = state.player.flightMax + 10; clampFlight();
+          if (state.player.flight !== state.player.flightMax) throw new Error('No limitó a flightMax');
+        });
+
+        // Test de loop (al menos un frame renderizado)
+        setTimeout(() => {
+          t('El loop de juego avanzó frames', () => {
+            if (state.frames <= 0) throw new Error('No se renderizó ningún frame');
+          });
+        }, 120);
+      })();
+
+      // Exponer utilidades en window para depurar en consola si lo deseas
+      window.__GAME__ = {
+        state,
+        resetGame,
+        setPlayerSprite: (opts) => {
+          Object.assign(state.sprite, opts || {});
+        }
+      };
+    });
+  })();
+  </script>
+</body>
+</html>

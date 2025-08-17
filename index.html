@@ -23,6 +23,36 @@
     .menu button { font-size:1.5em; padding:12px 28px; background:#4caf50; color:white; border:none; border-radius:8px; cursor:pointer; transition: background .2s; }
     .menu button:hover { background:#45a049; }
     .hidden { display:none; }
+
+    .mobile-controls { display: none; }
+    @media (max-width: 768px) {
+      .mobile-controls {
+        display: flex;
+        position: fixed;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        pointer-events: none; /* Container doesn't block clicks on game */
+      }
+      .mobile-controls button {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.2);
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        pointer-events: auto; /* Buttons are clickable */
+        user-select: none; /* Prevents text selection on hold */
+        -webkit-user-select: none;
+      }
+      .mobile-controls .dpad { display: flex; gap: 10px; }
+      .mobile-controls .actions { display: flex; gap: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -46,6 +76,17 @@
 
   <div class="wrap">
     <canvas id="game" width="940" height="520"></canvas>
+  </div>
+
+  <div id="mobile-controls" class="mobile-controls">
+    <div class="dpad">
+      <button id="btn-left">←</button>
+      <button id="btn-right">→</button>
+    </div>
+    <div class="actions">
+      <button id="btn-run">Correr</button>
+      <button id="btn-jump">Saltar</button>
+    </div>
   </div>
 
   <div class="tests">
@@ -82,7 +123,11 @@
         canvas: byId('game'),
         testsOut: byId('test-output'),
         mainMenu: byId('mainMenu'),
-        startButton: byId('startButton')
+        startButton: byId('startButton'),
+        btnLeft: byId('btn-left'),
+        btnRight: byId('btn-right'),
+        btnJump: byId('btn-jump'),
+        btnRun: byId('btn-run')
       };
 
       // --- Estado del juego ----------------------------------------------------
@@ -255,6 +300,22 @@
         }
       });
       window.addEventListener('keyup', (e) => { const k=kmap[e.key]; if(k){ state.keys[k]=false; }});
+
+      // --- Touch Controls -------------------------------------------------------
+      function handleTouchEvent(key, isPressed, e) {
+        state.keys[key] = isPressed;
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      UI.btnLeft.addEventListener('touchstart', (e) => handleTouchEvent('left', true, e));
+      UI.btnLeft.addEventListener('touchend', (e) => handleTouchEvent('left', false, e));
+      UI.btnRight.addEventListener('touchstart', (e) => handleTouchEvent('right', true, e));
+      UI.btnRight.addEventListener('touchend', (e) => handleTouchEvent('right', false, e));
+      UI.btnJump.addEventListener('touchstart', (e) => handleTouchEvent('jump', true, e));
+      UI.btnJump.addEventListener('touchend', (e) => handleTouchEvent('jump', false, e));
+      UI.btnRun.addEventListener('touchstart', (e) => handleTouchEvent('run', true, e));
+      UI.btnRun.addEventListener('touchend', (e) => handleTouchEvent('run', false, e));
 
       UI.startButton.addEventListener('click', () => {
         UI.mainMenu.classList.add('hidden');

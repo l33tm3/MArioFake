@@ -30,7 +30,8 @@
       btnLeft: byId('btn-left'),
       btnRight: byId('btn-right'),
       btnJump: byId('btn-jump'),
-      btnRun: byId('btn-run')
+      btnRun: byId('btn-run'),
+      btnFullscreen: byId('btn-fullscreen')
     };
 
     // --- Estado del juego ----------------------------------------------------
@@ -219,6 +220,13 @@
     UI.btnJump.addEventListener('touchend', (e) => handleTouchEvent('jump', false, e));
     UI.btnRun.addEventListener('touchstart', (e) => handleTouchEvent('run', true, e));
     UI.btnRun.addEventListener('touchend', (e) => handleTouchEvent('run', false, e));
+    UI.btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        UI.canvas.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
 
     UI.startButton.addEventListener('click', () => {
       UI.mainMenu.classList.add('hidden');

@@ -1,0 +1,48 @@
+html, body { margin:0; padding:0; background:#121212; color:#eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+.hud { display:flex; gap:24px; align-items:center; padding:10px 14px; background:#1e1e1e; position:sticky; top:0; z-index:2; border-bottom:1px solid #2a2a2a; }
+.hud .item { font-weight:600; }
+.bar { width:200px; height:10px; background:#2a2a2a; border-radius:6px; overflow:hidden; display:inline-block; vertical-align:middle; }
+.bar > div { height:100%; width:0%; background:#4caf50; }
+.wrap { display:flex; justify-content:center; padding:10px; }
+canvas { background:#202533; border:1px solid #2a2f45; display:block; }
+.tests { padding:10px 14px; background:#0f0f0f; border-top:1px solid #2a2a2a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.tests b { color:#9cdcfe; }
+.pass { color:#8bc34a; }
+.fail { color:#ff6e6e; }
+.hint { opacity:.8; font-size:.95em; }
+.menu { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; text-align:center; }
+.menu h1 { font-size:3.5em; margin-bottom:10px; text-shadow: 2px 2px 4px #000; }
+.menu p { font-size:1.2em; margin-bottom:30px; }
+.menu button { font-size:1.5em; padding:12px 28px; background:#4caf50; color:white; border:none; border-radius:8px; cursor:pointer; transition: background .2s; }
+.menu button:hover { background:#45a049; }
+.hidden { display:none; }
+
+.mobile-controls { display: none; }
+@media (max-width: 768px) {
+  .mobile-controls {
+    display: flex;
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    pointer-events: none; /* Container doesn't block clicks on game */
+  }
+  .mobile-controls button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    pointer-events: auto; /* Buttons are clickable */
+    user-select: none; /* Prevents text selection on hold */
+    -webkit-user-select: none;
+  }
+  .mobile-controls .dpad { display: flex; gap: 10px; }
+  .mobile-controls .actions { display: flex; gap: 10px; }
+}

@@ -17,9 +17,21 @@
     .pass { color:#8bc34a; }
     .fail { color:#ff6e6e; }
     .hint { opacity:.8; font-size:.95em; }
+    .menu { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; text-align:center; }
+    .menu h1 { font-size:3.5em; margin-bottom:10px; text-shadow: 2px 2px 4px #000; }
+    .menu p { font-size:1.2em; margin-bottom:30px; }
+    .menu button { font-size:1.5em; padding:12px 28px; background:#4caf50; color:white; border:none; border-radius:8px; cursor:pointer; transition: background .2s; }
+    .menu button:hover { background:#45a049; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
+  <div id="mainMenu" class="menu">
+    <h1>Aero Adventure</h1>
+    <p>¡Una aventura de plataformas y vuelo!</p>
+    <button id="startButton">Iniciar Juego</button>
+  </div>
+
   <div class="hud" id="hud">
     <div class="item">🟡 Monedas: <span id="coins">0</span></div>
     <div class="item">🏆 Puntaje: <span id="score">0</span></div>
@@ -68,7 +80,9 @@
         flightText: byId('flightText'),
         flightBar: byId('flightBar'),
         canvas: byId('game'),
-        testsOut: byId('test-output')
+        testsOut: byId('test-output'),
+        mainMenu: byId('mainMenu'),
+        startButton: byId('startButton')
       };
 
       // --- Estado del juego ----------------------------------------------------
@@ -81,10 +95,12 @@
       const skyY = 12; // techo lógico para no salir por arriba
 
       const state = {
-        running: true,
+        running: false,
+        gameStarted: false,
         frames: 0,
         keys: Object.create(null),
         cameraX: 0,
+        currentLevel: 0,
         worldWidth: 3200,
         endX: 3000,
         bg: {
@@ -115,8 +131,8 @@
           loaded: false,
           frameW: null,
           frameH: null,
-          cols: 1,
-          rows: 1,
+          cols: null,
+          rows: null,
           frameIndex: 0,
           animations: {
             // Índices pensados para hoja 4x3 (fila 0: caminar, fila 2 col 0: idle)
@@ -126,34 +142,62 @@
           speed: 6,
           current: 'idle'
         },
-        coins: [
-          {x: 360, y: groundY - 120, r: 10, taken:false},
-          {x: 520, y: groundY - 60,  r: 10, taken:false},
-          {x: 780, y: groundY - 160, r: 10, taken:false},
-          {x: 1200, y: groundY - 120, r: 10, taken:false},
-          {x: 1400, y: groundY - 160, r: 10, taken:false},
-          {x: 1650, y: groundY - 100, r: 10, taken:false}
-        ],
-        platforms: [
-          {x: 300, y: groundY - 20, w: 160, h: 12},
-          {x: 700, y: groundY - 70, w: 120, h: 12},
-          {x: 1100, y: groundY - 40, w: 180, h: 12},
-          {x: 1500, y: groundY - 90, w: 160, h: 12},
-          {x: 1900, y: groundY - 60, w: 140, h: 12},
-          {x: 2300, y: groundY - 110, w: 200, h: 12}
-        ],
-        blocks: [
-          {x: 600,  y: groundY - 120, w: 24, h: 24, type: 'question', state: 'full', initState: 'full'},
-          {x: 624,  y: groundY - 120, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'},
-          {x: 648,  y: groundY - 120, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'},
-          {x: 1200, y: groundY - 160, w: 24, h: 24, type: 'question', state: 'full', initState: 'full'},
-          {x: 1450, y: groundY - 200, w: 24, h: 24, type: 'brick',    state: 'solid', initState: 'solid'}
-        ],
-        enemies: [
-          {x: 900,  y: groundY - 24, w: 24, h: 24, vx: -0.6, alive: true, patrolLeft: 860, patrolRight: 1000, sx: 900,  sy: groundY - 24, svx: -0.6},
-          {x: 1700, y: groundY - 24, w: 24, h: 24, vx: -0.7, alive: true, patrolLeft: 1660, patrolRight: 1780, sx: 1700, sy: groundY - 24, svx: -0.7}
-        ]
+        coins: [], platforms: [], blocks: [], enemies: []
       };
+
+      const levels = [
+        { // Nivel 1
+          worldWidth: 3200, endX: 3000,
+          coins: [
+            {x: 360, y: groundY - 120, r: 10}, {x: 520, y: groundY - 60, r: 10},
+            {x: 780, y: groundY - 160, r: 10}, {x: 1200, y: groundY - 120, r: 10},
+            {x: 1400, y: groundY - 160, r: 10}, {x: 1650, y: groundY - 100, r: 10}
+          ],
+          platforms: [
+            {x: 300, y: groundY - 20, w: 160, h: 12}, {x: 700, y: groundY - 70, w: 120, h: 12},
+            {x: 1100, y: groundY - 40, w: 180, h: 12}, {x: 1500, y: groundY - 90, w: 160, h: 12},
+            {x: 1900, y: groundY - 60, w: 140, h: 12}, {x: 2300, y: groundY - 110, w: 200, h: 12}
+          ],
+          blocks: [
+            {x: 600, y: groundY - 120, w: 24, h: 24, type: 'question', state: 'full'},
+            {x: 624, y: groundY - 120, w: 24, h: 24, type: 'brick', state: 'solid'},
+            {x: 648, y: groundY - 120, w: 24, h: 24, type: 'brick', state: 'solid'},
+            {x: 1200, y: groundY - 160, w: 24, h: 24, type: 'question', state: 'full'},
+            {x: 1450, y: groundY - 200, w: 24, h: 24, type: 'brick', state: 'solid'}
+          ],
+          enemies: [
+            {x: 900, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 860, patrolRight: 1000},
+            {x: 1700, y: groundY - 24, w: 24, h: 24, vx: -0.7, patrolLeft: 1660, patrolRight: 1780}
+          ]
+        },
+        { // Nivel 2
+          worldWidth: 4000, endX: 3800,
+          coins: [
+            {x: 400, y: groundY - 150, r: 10}, {x: 600, y: groundY - 200, r: 10},
+            {x: 900, y: groundY - 100, r: 10}, {x: 1500, y: groundY - 250, r: 10},
+            {x: 2000, y: groundY - 80, r: 10}, {x: 2500, y: groundY - 180, r: 10},
+            {x: 3000, y: groundY - 220, r: 10}, {x: 3500, y: groundY - 120, r: 10}
+          ],
+          platforms: [
+            {x: 200, y: groundY - 40, w: 100, h: 12}, {x: 550, y: groundY - 90, w: 150, h: 12},
+            {x: 800, y: groundY - 140, w: 200, h: 12}, {x: 1200, y: groundY - 190, w: 120, h: 12},
+            {x: 1800, y: groundY - 70, w: 250, h: 12}, {x: 2400, y: groundY - 150, w: 180, h: 12},
+            {x: 2900, y: groundY - 200, w: 200, h: 12}, {x: 3400, y: groundY - 90, w: 150, h: 12}
+          ],
+          blocks: [
+            {x: 600, y: groundY - 240, w: 24, h: 24, type: 'question', state: 'full'},
+            {x: 1500, y: groundY - 290, w: 24, h: 24, type: 'question', state: 'full'},
+            {x: 2200, y: groundY - 120, w: 24, h: 24, type: 'brick', state: 'solid'},
+            {x: 2224, y: groundY - 120, w: 24, h: 24, type: 'brick', state: 'solid'}
+          ],
+          enemies: [
+            {x: 500, y: groundY - 24, w: 24, h: 24, vx: -0.8, patrolLeft: 450, patrolRight: 650},
+            {x: 1000, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 950, patrolRight: 1150},
+            {x: 1600, y: groundY - 24, w: 24, h: 24, vx: 0.7, patrolLeft: 1550, patrolRight: 1750},
+            {x: 2600, y: groundY - 24, w: 24, h: 24, vx: -0.9, patrolLeft: 2500, patrolRight: 2800}
+          ]
+        }
+      ];
 
       // Cargar sprite del jugador (image.png en raíz)
       const playerImg = new Image();
@@ -211,7 +255,57 @@
       });
       window.addEventListener('keyup', (e) => { const k=kmap[e.key]; if(k){ state.keys[k]=false; }});
 
+      UI.startButton.addEventListener('click', () => {
+        UI.mainMenu.classList.add('hidden');
+        loadLevel(0);
+        state.running = true;
+        state.gameStarted = true;
+      });
+
       // --- Helpers de juego ------------------------------------------------------
+      function loadLevel(levelIndex) {
+        if (levelIndex >= levels.length) {
+            // Has ganado el juego
+            state.running = false;
+            UI.mainMenu.querySelector('h1').textContent = '¡Has Ganado!';
+            UI.mainMenu.querySelector('p').textContent = `Puntaje Final: ${state.player.score}`;
+            UI.mainMenu.querySelector('button').style.display = 'none'; // Ocultar botón
+            UI.mainMenu.classList.remove('hidden');
+            return;
+        }
+
+        const level = levels[levelIndex];
+        state.currentLevel = levelIndex;
+        state.worldWidth = level.worldWidth;
+        state.endX = level.endX;
+
+        // Deep copy para evitar modificar la plantilla del nivel
+        state.coins = JSON.parse(JSON.stringify(level.coins));
+        state.platforms = JSON.parse(JSON.stringify(level.platforms));
+        state.blocks = JSON.parse(JSON.stringify(level.blocks));
+        state.enemies = JSON.parse(JSON.stringify(level.enemies));
+
+        // Guardar estado inicial para reseteos
+        state.blocks.forEach(b => b.initState = b.state);
+        state.enemies.forEach(e => {
+            e.sx = e.x;
+            e.sy = e.y;
+            e.svx = e.vx;
+            e.alive = true;
+        });
+
+        resetPlayer();
+        state.cameraX = 0;
+        updateFlightUI();
+      }
+
+      function resetPlayer() {
+        const p = state.player;
+        p.x = 120; p.y = groundY - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
+        p.flight = p.flightMax;
+        // El puntaje y monedas se mantienen entre niveles, no se resetean aquí
+      }
+
       function addCoins(n){
         state.player.coins += n;
         state.player.score += 100*n;
@@ -225,16 +319,13 @@
       }
 
       function resetGame(){
-        const p = state.player;
-        p.x = 120; p.y = groundY - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
-        p.coins = 0; p.score = 0; p.flight = p.flightMax;
-        for (const c of state.coins) c.taken = false;
-        for (const b of state.blocks) b.state = b.initState;
-        for (const e of state.enemies){ e.x = e.sx; e.y = e.sy; e.vx = e.svx; e.alive = true; }
-        state.cameraX = 0;
-        setText(UI.coins, p.coins);
-        setText(UI.score, p.score);
-        updateFlightUI();
+        // Restablece el nivel actual
+        loadLevel(state.currentLevel);
+        // Restablece puntaje y monedas
+        state.player.coins = 0;
+        state.player.score = 0;
+        setText(UI.coins, state.player.coins);
+        setText(UI.score, state.player.score);
       }
 
       function updateFlightUI(){
@@ -367,8 +458,7 @@
 
         // Fin de nivel
         if (p.x >= state.endX){
-          state.running = false;
-          UI.testsOut.textContent += '\nNivel completado!';
+          loadLevel(state.currentLevel + 1);
         }
 
         // Animación de sprite (caminar/idle)
@@ -396,7 +486,12 @@
 
         // Reinicio / pausa (conmutar)
         if (state.keys.reset){ resetGame(); state.keys.reset=false; }
-        if (state.keys.pause){ state.running = !state.running; state.keys.pause=false; }
+        if (state.keys.pause){
+          if (state.gameStarted) {
+            state.running = !state.running;
+          }
+          state.keys.pause=false;
+        }
 
         // Render
         draw();
@@ -404,6 +499,11 @@
       }
 
       function draw(){
+        if (!state.gameStarted) {
+            ctx.fillStyle = '#121212';
+            ctx.fillRect(0, 0, W, H);
+            return;
+        }
         const camX = state.cameraX || 0;
         // Fondo (parallax con mosaico)
         if (state.bg.loaded && state.bg.image){

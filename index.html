@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Aero Adventure (fix DOM + tests)</title>
+  <title>Daniela Persigue a Martin y Facundo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body { margin:0; padding:0; background:#121212; color:#eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
@@ -27,8 +27,8 @@
 </head>
 <body>
   <div id="mainMenu" class="menu">
-    <h1>Aero Adventure</h1>
-    <p>¡Una aventura de plataformas y vuelo!</p>
+    <h1>Daniela Persigue a Martin y Facundo</h1>
+    <p>¡Ayuda a Daniela a atrapar a los villanos!</p>
     <button id="startButton">Iniciar Juego</button>
   </div>
 
@@ -111,6 +111,7 @@
           tileW: 0,
           tileH: 0
         },
+        // La heroína se llama Daniela Velozo
         player: {
           x: 120, y: groundY - 40, w: 28, h: 40,
           vx: 0, vy: 0,
@@ -166,8 +167,8 @@
             {x: 1450, y: groundY - 200, w: 24, h: 24, type: 'brick', state: 'solid'}
           ],
           enemies: [
-            {x: 900, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 860, patrolRight: 1000},
-            {x: 1700, y: groundY - 24, w: 24, h: 24, vx: -0.7, patrolLeft: 1660, patrolRight: 1780}
+            {type: 'default', x: 900, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 860, patrolRight: 1000},
+            {type: 'facundo', x: 1700, y: groundY - 24, w: 24, h: 24, vx: -0.7, patrolLeft: 1660, patrolRight: 1780}
           ]
         },
         { // Nivel 2
@@ -191,10 +192,10 @@
             {x: 2224, y: groundY - 120, w: 24, h: 24, type: 'brick', state: 'solid'}
           ],
           enemies: [
-            {x: 500, y: groundY - 24, w: 24, h: 24, vx: -0.8, patrolLeft: 450, patrolRight: 650},
-            {x: 1000, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 950, patrolRight: 1150},
-            {x: 1600, y: groundY - 24, w: 24, h: 24, vx: 0.7, patrolLeft: 1550, patrolRight: 1750},
-            {x: 2600, y: groundY - 24, w: 24, h: 24, vx: -0.9, patrolLeft: 2500, patrolRight: 2800}
+            {type: 'default', x: 500, y: groundY - 24, w: 24, h: 24, vx: -0.8, patrolLeft: 450, patrolRight: 650},
+            {type: 'facundo', x: 1000, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 950, patrolRight: 1150},
+            {type: 'default', x: 1600, y: groundY - 24, w: 24, h: 24, vx: 0.7, patrolLeft: 1550, patrolRight: 1750},
+            {type: 'martin', x: 2600, y: groundY - 24, w: 24, h: 24, vx: -0.9, patrolLeft: 2500, patrolRight: 2800}
           ]
         }
       ];
@@ -584,9 +585,32 @@
         for (const e of state.enemies){
           if (!e.alive) continue;
           const vx = Math.round(e.x - camX);
-          if (vx + e.w < 0 || vx > W) continue;
-          ctx.fillStyle = '#e57373';
-          ctx.fillRect(vx, e.y, e.w, e.h);
+
+          // Definir propiedades de enemigo por tipo
+          let color = '#e57373'; // Color por defecto
+          let width = e.w;
+          let height = e.h;
+
+          switch (e.type) {
+            case 'martin':
+              color = '#ff4444'; // Rojo para Martin
+              width = 48;
+              height = 48;
+              break;
+            case 'facundo':
+              color = '#ffbb33'; // Naranja para Facundo
+              width = 36;
+              height = 36;
+              break;
+          }
+
+          if (vx + width < 0 || vx > W) continue;
+
+          // Usar 'y' ajustada para que los enemigos más grandes sigan en el suelo
+          const adjustedY = e.y - (height - e.h);
+
+          ctx.fillStyle = color;
+          ctx.fillRect(vx, adjustedY, width, height);
         }
 
         // Meta (bandera/polo)

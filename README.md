@@ -50,7 +50,9 @@ bg.tileH = Math.ceil(bg.image.naturalHeight * bg.scale);
 - Energía de vuelo: `flight`, `flightMax` (se muestra en HUD y se recarga en el suelo).
 
 ### Estructura
-- `index.html`: código del juego (JS inline para simplicidad)
+- `index.html`: estructura base que enlaza a los archivos de estilos y scripts
+- `css/styles.css`: estilos del juego
+- `js/game.js`: lógica del juego
 - `image.png`: spritesheet del jugador
 - `paisaje.png`/`paisaje.jpg`: fondo con parallax
 - `caminar.png` (opcional): otro asset de ejemplo
@@ -63,6 +65,14 @@ bg.tileH = Math.ceil(bg.image.naturalHeight * bg.scale);
 __GAME__.state;        // estado completo
 __GAME__.resetGame();  // reiniciar
 ```
+
+### ¿Por qué considerar un motor de juego?
+Si el proyecto crece, migrar a un motor especializado puede aportar:
+
+- APIs listas para colisiones, animaciones y audio.
+- Gestión de escenas y estados del juego.
+- Mejor portabilidad a móviles y escritorio.
+- Ecosistema de plugins y documentación más amplia.
 
 ### Deploy en GitHub Pages (opcional)
 1) Crea un repo y sube los archivos.

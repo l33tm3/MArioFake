@@ -24,13 +24,11 @@
       flightText: byId('flightText'),
       flightBar: byId('flightBar'),
       canvas: byId('game'),
-      testsOut: byId('test-output'),
-      mainMenu: byId('mainMenu'),
-      startButton: byId('startButton'),
       btnLeft: byId('btn-left'),
       btnRight: byId('btn-right'),
       btnJump: byId('btn-jump'),
-      btnRun: byId('btn-run')
+      btnRun: byId('btn-run'),
+      btnFullscreen: byId('btn-fullscreen')
     };
 
     // --- Estado del juego ----------------------------------------------------
@@ -44,7 +42,6 @@
 
     const state = {
       running: false,
-      gameStarted: false,
       frames: 0,
       keys: Object.create(null),
       cameraX: 0,
@@ -219,23 +216,19 @@
     UI.btnJump.addEventListener('touchend', (e) => handleTouchEvent('jump', false, e));
     UI.btnRun.addEventListener('touchstart', (e) => handleTouchEvent('run', true, e));
     UI.btnRun.addEventListener('touchend', (e) => handleTouchEvent('run', false, e));
-
-    UI.startButton.addEventListener('click', () => {
-      UI.mainMenu.classList.add('hidden');
-      loadLevel(0);
-      state.running = true;
-      state.gameStarted = true;
+    UI.btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        UI.canvas.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
     });
-
     // --- Helpers de juego ------------------------------------------------------
     function loadLevel(levelIndex) {
       if (levelIndex >= levels.length) {
           // Has ganado el juego
           state.running = false;
-          UI.mainMenu.querySelector('h1').textContent = '¡Has Ganado!';
-          UI.mainMenu.querySelector('p').textContent = `Puntaje Final: ${state.player.score}`;
-          UI.mainMenu.querySelector('button').style.display = 'none'; // Ocultar botón
-          UI.mainMenu.classList.remove('hidden');
+          alert('¡Has Ganado! Puntaje Final: ' + state.player.score);
           return;
       }
 
@@ -452,9 +445,7 @@
       // Reinicio / pausa (conmutar)
       if (state.keys.reset){ resetGame(); state.keys.reset=false; }
       if (state.keys.pause){
-        if (state.gameStarted) {
-          state.running = !state.running;
-        }
+        state.running = !state.running;
         state.keys.pause=false;
       }
 
@@ -464,11 +455,6 @@
     }
 
     function draw(){
-      if (!state.gameStarted) {
-          ctx.fillStyle = '#121212';
-          ctx.fillRect(0, 0, W, H);
-          return;
-      }
       const camX = state.cameraX || 0;
       // Fondo (parallax con mosaico)
       if (state.bg.loaded && state.bg.image){
@@ -597,59 +583,10 @@
     setText(UI.score, state.player.score);
     updateFlightUI();
 
-    // Iniciar
+    // Cargar primer nivel y arrancar el juego
+    loadLevel(0);
+    state.running = true;
     requestAnimationFrame(step);
-
-    // --- Test Runner ----------------------------------------------------------
-    (function runTests(){
-      const log = (name, ok, err) => {
-        const line = (ok ? '✔️ ' : '❌ ') + name + (ok ? '' : ' -> ' + err);
-        UI.testsOut.textContent += '\n' + (ok ? line : line);
-        const span = document.createElement('span');
-        span.className = ok ? 'pass' : 'fail';
-        span.textContent = line;
-        UI.testsOut.appendChild(span);
-      };
-
-      function t(name, fn){
-        try { fn(); log(name, true); }
-        catch(e){ log(name, false, e.message || String(e)); }
-      }
-
-      // Tests mínimos de DOM/UI
-      t('Existe #coins', () => { if (!(UI.coins instanceof HTMLElement)) throw new Error('No existe #coins'); });
-      t('Existe #score', () => { if (!(UI.score instanceof HTMLElement)) throw new Error('No existe #score'); });
-      t('Existe barra de vuelo', () => { if (!(UI.flightBar instanceof HTMLElement)) throw new Error('No existe #flightBar'); });
-
-      // Test de actualización de texto segura
-      t('setText actualiza #coins sin errores', () => {
-        setText(UI.coins, '7');
-        if (UI.coins.textContent !== '7') throw new Error('textContent no coincide');
-      });
-
-      // Test de lógica de monedas -> UI
-      t('addCoins incrementa estado y HUD', () => {
-        const before = state.player.coins;
-        addCoins(1);
-        if (state.player.coins !== before + 1) throw new Error('Estado coins no incrementó');
-        if (UI.coins.textContent !== String(state.player.coins)) throw new Error('HUD coins no sincronizado');
-      });
-
-      // Test de límites de vuelo
-      t('clampFlight limita a [0, flightMax]', () => {
-        state.player.flight = -5; clampFlight();
-        if (state.player.flight !== 0) throw new Error('No limitó a 0');
-        state.player.flight = state.player.flightMax + 10; clampFlight();
-        if (state.player.flight !== state.player.flightMax) throw new Error('No limitó a flightMax');
-      });
-
-      // Test de loop (al menos un frame renderizado)
-      setTimeout(() => {
-        t('El loop de juego avanzó frames', () => {
-          if (state.frames <= 0) throw new Error('No se renderizó ningún frame');
-        });
-      }, 120);
-    })();
 
     // Exponer utilidades en window para depurar en consola si lo deseas
     window.__GAME__ = {

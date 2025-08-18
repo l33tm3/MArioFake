@@ -92,7 +92,7 @@
         speed: 6,
         current: 'idle'
       },
-      coins: [], platforms: [], blocks: [], enemies: []
+      coins: [], platforms: [], blocks: [], enemies: [], enemySprites: {}
     };
 
     const levels = [
@@ -187,6 +187,17 @@
     bgImg.onerror = tryJpgIfPngFails;
     bgImg.src = 'paisaje.png';
 
+    // Cargar sprites de enemigos
+    const enemySpriteTypes = ['martin', 'facundo'];
+    state.enemySprites = {};
+    enemySpriteTypes.forEach(t => {
+      const img1 = new Image();
+      img1.src = `sprites/${t}/1.png`;
+      const img2 = new Image();
+      img2.src = `sprites/${t}/2.png`;
+      state.enemySprites[t] = [img1, img2];
+    });
+
     // --- Input ----------------------------------------------------------------
     const kmap = {
       'ArrowLeft':'left','ArrowRight':'right',
@@ -265,6 +276,9 @@
           e.sy = e.y;
           e.svx = e.vx;
           e.alive = true;
+          e.frameIndex = 0;
+          e.frameCounter = 0;
+          e.animSpeed = 20;
       });
 
       resetPlayer();
@@ -411,6 +425,11 @@
         e.x += e.vx;
         if (e.x < e.patrolLeft){ e.x = e.patrolLeft; e.vx *= -1; }
         if (e.x + e.w > e.patrolRight){ e.x = e.patrolRight - e.w; e.vx *= -1; }
+        e.frameCounter++;
+        if (e.frameCounter >= e.animSpeed){
+          e.frameCounter = 0;
+          e.frameIndex = (e.frameIndex + 1) % 2;
+        }
         // Colisión con jugador
         if (rectsOverlap(p.x, p.y, p.w, p.h, e.x, e.y, e.w, e.h)){
           const stompFromAbove = p.vy > 0 && (p.y + p.h - p.vy) <= e.y;
@@ -558,19 +577,15 @@
         if (!e.alive) continue;
         const vx = Math.round(e.x - camX);
 
-        // Definir propiedades de enemigo por tipo
-        let color = '#e57373'; // Color por defecto
+        // Ajustar tamaño según tipo
         let width = e.w;
         let height = e.h;
-
         switch (e.type) {
           case 'martin':
-            color = '#ff4444'; // Rojo para Martin
             width = 48;
             height = 48;
             break;
           case 'facundo':
-            color = '#ffbb33'; // Naranja para Facundo
             width = 36;
             height = 36;
             break;
@@ -581,8 +596,14 @@
         // Usar 'y' ajustada para que los enemigos más grandes sigan en el suelo
         const adjustedY = e.y - (height - e.h);
 
-        ctx.fillStyle = color;
-        ctx.fillRect(vx, adjustedY, width, height);
+        const imgs = state.enemySprites[e.type];
+        const img = imgs ? imgs[e.frameIndex] : null;
+        if (img && img.complete) {
+          ctx.drawImage(img, vx, adjustedY, width, height);
+        } else {
+          ctx.fillStyle = '#e57373';
+          ctx.fillRect(vx, adjustedY, width, height);
+        }
       }
 
       // Meta (bandera/polo)

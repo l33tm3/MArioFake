@@ -34,6 +34,12 @@
       btnFullscreen: byId('btn-fullscreen')
     };
 
+    // --- Audio --------------------------------------------------------------
+    const mainMusic = new Audio('audio/main.mp3');
+    mainMusic.loop = true;
+
+    const coinSound = new Audio('audio/chact-select.mp3');
+
     // --- Estado del juego ----------------------------------------------------
     const ctx = UI.canvas.getContext('2d', { alpha: false });
     // Mejor para pixel art
@@ -233,6 +239,7 @@
       loadLevel(0);
       state.running = true;
       state.gameStarted = true;
+      mainMusic.play();
     });
 
     // --- Helpers de juego ------------------------------------------------------
@@ -284,6 +291,8 @@
       state.player.score += 100*n;
       setText(UI.coins, state.player.coins);
       setText(UI.score, state.player.score);
+      coinSound.currentTime = 0;
+      coinSound.play();
     }
 
     function clampFlight(){

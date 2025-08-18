@@ -178,7 +178,7 @@
         state.bg.tileH = Math.ceil(tryJpg.naturalHeight * state.bg.scale);
       };
       tryJpg.onerror = () => { console.warn("No se pudo cargar 'paisaje.png' ni 'paisaje.jpg'. Se usará color de fondo."); };
-      tryJpg.src = 'paisaje.jpg';
+      tryJpg.src = 'pruebapsaiaje.jpg';
     };
     bgImg.onload = () => {
       state.bg.loaded = true;
@@ -188,7 +188,7 @@
       state.bg.tileH = Math.ceil(bgImg.naturalHeight * state.bg.scale);
     };
     bgImg.onerror = tryJpgIfPngFails;
-    bgImg.src = 'paisaje.png';
+    bgImg.src = 'pruebapsaiaje.png';
 
     // Cargar sprites de enemigos
     const enemySpriteTypes = ['martin', 'facundo'];

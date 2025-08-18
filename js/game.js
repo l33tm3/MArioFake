@@ -51,12 +51,6 @@
     let W, H, groundY;
     const skyY = 12; // techo lógico para no salir por arriba
 
-    function resizeCanvas() {
-      W = UI.canvas.width = window.innerWidth;
-      H = UI.canvas.height = Math.min(window.innerHeight * 0.75, 520);
-      groundY = H - 92;
-    }
-    resizeCanvas();
 
     // Factor de escala para todos los personajes y sprites
     // Permite ajustar fácilmente el tamaño sin modificar las imágenes originales

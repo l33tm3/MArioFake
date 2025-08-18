@@ -38,7 +38,7 @@
     const mainMusic = new Audio('audio/main.mp3');
     mainMusic.loop = true;
 
-    const coinSound = new Audio('audio/chact-select.mp3');
+    const coinSound = new Audio('audio/coin-on.mp3');
 
     // --- Estado del juego ----------------------------------------------------
     const ctx = UI.canvas.getContext('2d', { alpha: false });
@@ -83,17 +83,13 @@
         jump: 9.0
       },
       sprite: {
-        image: null,
+        images: [],
         loaded: false,
-        frameW: null,
-        frameH: null,
-        cols: null,
-        rows: null,
         frameIndex: 0,
         animations: {
-          // Índices pensados para hoja 4x3 (fila 0: caminar, fila 2 col 0: idle)
-          idle: [8],
-          walk: [0,1,2,3]
+          // 0: estática (1.png), 1: caminando (2.png)
+          idle: [0],
+          walk: [0, 1]
         },
         speed: 6,
         current: 'idle'
@@ -155,19 +151,20 @@
       }
     ];
 
-    // Cargar sprite del jugador (image.png en raíz)
-    const playerImg = new Image();
-    playerImg.onload = () => {
-      state.sprite.loaded = true;
-      state.sprite.image = playerImg;
-      // Intento por defecto para esta hoja: 4 columnas x 3 filas (12 frames)
-      if (!state.sprite.cols) state.sprite.cols = 4;
-      if (!state.sprite.rows) state.sprite.rows = 3;
-      if (!state.sprite.frameW) state.sprite.frameW = Math.floor(playerImg.naturalWidth / state.sprite.cols);
-      if (!state.sprite.frameH) state.sprite.frameH = Math.floor(playerImg.naturalHeight / state.sprite.rows);
-    };
-    playerImg.onerror = () => { console.warn('No se pudo cargar \'image.png\'. Usando rectángulo por defecto.'); };
-    playerImg.src = 'image.png';
+    // Cargar sprites del jugador (1.png estático, 2.png caminando)
+    let playerImgsLoaded = 0;
+    ['sprites/daniela/1.png', 'sprites/daniela/2.png'].forEach((src, idx) => {
+      const img = new Image();
+      img.onload = () => {
+        playerImgsLoaded++;
+        if (playerImgsLoaded === 2) {
+          state.sprite.loaded = true;
+        }
+      };
+      img.onerror = () => { console.warn(`No se pudo cargar '${src}'.`); };
+      img.src = src;
+      state.sprite.images[idx] = img;
+    });
 
     // Cargar fondo (paisaje.png o paisaje.jpg)
     const bgImg = new Image();
@@ -464,8 +461,7 @@
 
       // Animación de sprite (caminar/idle)
       const spr = state.sprite;
-      const totalFrames = (spr.cols || 1) * (spr.rows || 1);
-      if (spr.loaded && totalFrames > 0){
+      if (spr.loaded){
         const movingOnGround = p.onGround && Math.abs(p.vx) > 0.01;
         spr.current = movingOnGround ? 'walk' : 'idle';
         const seq = spr.animations[spr.current] || [0];
@@ -561,19 +557,15 @@
       const p = state.player;
       const spr = state.sprite;
       const drawX = Math.round(p.x - camX);
-      if (spr.loaded && spr.image){
-        const fw = spr.frameW || spr.image.naturalWidth;
-        const fh = spr.frameH || spr.image.naturalHeight;
-        const cols = spr.cols || 1;
-        const sx = (spr.frameIndex % cols) * fw;
-        const sy = Math.floor(spr.frameIndex / cols) * fh;
+      if (spr.loaded && spr.images.length){
+        const img = spr.images[spr.frameIndex] || spr.images[0];
         ctx.save();
         if (p.facing === -1){
           ctx.translate(drawX + p.w, 0);
           ctx.scale(-1, 1);
-          ctx.drawImage(spr.image, sx, sy, fw, fh, 0, p.y, p.w, p.h);
+          ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, p.y, p.w, p.h);
         } else {
-          ctx.drawImage(spr.image, sx, sy, fw, fh, drawX, p.y, p.w, p.h);
+          ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, drawX, p.y, p.w, p.h);
         }
         ctx.restore();
       } else {

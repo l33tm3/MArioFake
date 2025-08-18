@@ -2,8 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Daniela Persigue a Martin y Facundo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daniela y Bebé Facundo - Aventura Familiar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="preload" as="audio" href="audio/main.mp3">
   <link rel="preload" as="audio" href="audio/main2.mp3">
@@ -16,8 +19,8 @@
 </head>
 <body>
   <div id="mainMenu" class="menu">
-    <h1>Daniela Persigue a Martin y Facundo</h1>
-    <p>¡Ayuda a Daniela a atrapar a los villanos!</p>
+    <h1>Daniela y su bebé Facundo persiguen a Martin</h1>
+    <p>¡Ayuda a Daniela y su bebé Facundo a atrapar a los villanos! Aventura familiar con sistema de vida.</p>
     <button id="startButton">Iniciar Juego</button>
   </div>
 
@@ -25,12 +28,18 @@
     <div class="item">🟡 Monedas: <span id="coins">0</span></div>
     <div class="item">🏆 Puntaje: <span id="score">0</span></div>
     <div class="item">
+      ❤️ Vida: <span id="healthText">100%</span>
+      <span class="bar" title="Barra de vida">
+        <div id="healthBar" style="background:#ff4444;"></div>
+      </span>
+    </div>
+    <div class="item">
       ✈️ Vuelo: <span id="flightText">100%</span>
       <span class="bar" title="Energía de vuelo">
         <div id="flightBar"></div>
       </span>
     </div>
-    <div class="item hint">Controles: ← → mover, Z/Space saltar/volar, Shift/X correr, P pausa, R reiniciar</div>
+    <div class="item hint">Controles: ← → mover, Z/Space saltar/volar, Shift/X correr, C/Ctrl disparar, P pausa, R reiniciar</div>
   </div>
 
   <div class="wrap">
@@ -38,22 +47,26 @@
   </div>
 
   <div id="mobile-controls" class="mobile-controls">
-    <div class="dpad">
-      <button id="btn-left">←</button>
-      <button id="btn-right">→</button>
-    </div>
-    <div class="actions">
-      <button id="btn-run">Correr</button>
-      <button id="btn-jump">Saltar</button>
-      <button id="btn-fullscreen" title="Pantalla completa">⛶</button>
-    </div>
+    <canvas id="controls-canvas"></canvas>
   </div>
 
-  <div class="tests">
-    <b>Tests</b>
-    <pre id="test-output">Ejecutando tests…</pre>
-  </div>
+
 
   <script src="js/game.js" defer></script>
+  <script>
+    // Forzar visibilidad de controles móviles en tablets
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 1366) {
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          const mobileControls = document.querySelector('.mobile-controls');
+          if (mobileControls) {
+            mobileControls.classList.add('show');
+            mobileControls.style.display = 'block'; // Forzar también con estilo inline
+            console.log('Controles móviles forzados a visible');
+          }
+        }, 500); // Dar tiempo a que se cargue todo
+      });
+    }
+  </script>
 </body>
 </html>

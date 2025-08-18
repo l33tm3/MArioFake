@@ -24,14 +24,14 @@
       flightText: byId('flightText'),
       flightBar: byId('flightBar'),
       canvas: byId('game'),
-      testsOut: byId('test-output'),
       mainMenu: byId('mainMenu'),
       startButton: byId('startButton'),
       btnLeft: byId('btn-left'),
       btnRight: byId('btn-right'),
       btnJump: byId('btn-jump'),
       btnRun: byId('btn-run'),
-      btnFullscreen: byId('btn-fullscreen')
+      btnFullscreen: byId('btn-fullscreen'),
+      mobileControls: byId('mobile-controls')
     };
 
     // --- Audio --------------------------------------------------------------
@@ -40,15 +40,27 @@
 
     const coinSound = new Audio('audio/coin-on.mp3');
 
+    if ('ontouchstart' in window) {
+      UI.mobileControls.style.display = 'flex';
+    }
+
     // --- Estado del juego ----------------------------------------------------
     const ctx = UI.canvas.getContext('2d', { alpha: false });
     // Mejor para pixel art
     ctx.imageSmoothingEnabled = false;
-    const W = UI.canvas.width, H = UI.canvas.height;
-    // Subimos el suelo lógico para que el personaje quede más alto en pantalla
-    // Ajustado para que Daniela y los enemigos queden a nivel de la acera
-    const groundY = H - 92;
+    let W, H, groundY;
     const skyY = 12; // techo lógico para no salir por arriba
+
+    function resizeCanvas() {
+      W = UI.canvas.width = window.innerWidth;
+      H = UI.canvas.height = Math.min(window.innerHeight * 0.75, 520);
+      groundY = H - 92;
+    }
+    resizeCanvas();
+
+    // Factor de escala para todos los personajes y sprites
+    // Permite ajustar fácilmente el tamaño sin modificar las imágenes originales
+    const CHAR_SCALE = 1;
 
 
     const state = {
@@ -102,6 +114,11 @@
       coins: [], platforms: [], blocks: [], enemies: [], enemySprites: {}
     };
 
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      state.player.y = groundY - state.player.h;
+    });
+
     const levels = [
       { // Nivel 1
         worldWidth: 12000, endX: 12000,
@@ -152,6 +169,36 @@
           {type: 'facundo', x: 1000, y: groundY - 24, w: 24, h: 24, vx: -0.6, patrolLeft: 950, patrolRight: 1150},
           {type: 'default', x: 1600, y: groundY - 24, w: 24, h: 24, vx: 0.7, patrolLeft: 1550, patrolRight: 1750},
           {type: 'martin', x: 2600, y: groundY - 24, w: 24, h: 24, vx: -0.9, patrolLeft: 2500, patrolRight: 2800}
+        ]
+      },
+      { // Nivel 3
+        worldWidth: 5000, endX: 4800,
+        coins: [
+          {x: 300, y: groundY - 130, r: 10}, {x: 800, y: groundY - 180, r: 10},
+          {x: 1300, y: groundY - 90, r: 10}, {x: 1800, y: groundY - 200, r: 10},
+          {x: 2300, y: groundY - 150, r: 10}, {x: 2800, y: groundY - 220, r: 10},
+          {x: 3300, y: groundY - 100, r: 10}, {x: 3800, y: groundY - 170, r: 10},
+          {x: 4300, y: groundY - 120, r: 10}
+        ],
+        platforms: [
+          {x: 250, y: groundY - 60, w: 140, h: 12}, {x: 700, y: groundY - 110, w: 160, h: 12},
+          {x: 1150, y: groundY - 160, w: 200, h: 12}, {x: 1700, y: groundY - 210, w: 180, h: 12},
+          {x: 2250, y: groundY - 80, w: 220, h: 12}, {x: 2700, y: groundY - 140, w: 160, h: 12},
+          {x: 3150, y: groundY - 190, w: 200, h: 12}, {x: 3600, y: groundY - 240, w: 220, h: 12},
+          {x: 4050, y: groundY - 100, w: 180, h: 12}, {x: 4500, y: groundY - 150, w: 200, h: 12}
+        ],
+        blocks: [
+          {x: 800, y: groundY - 220, w: 24, h: 24, type: 'question', state: 'full'},
+          {x: 1700, y: groundY - 260, w: 24, h: 24, type: 'question', state: 'full'},
+          {x: 3200, y: groundY - 210, w: 24, h: 24, type: 'brick', state: 'solid'},
+          {x: 3224, y: groundY - 210, w: 24, h: 24, type: 'brick', state: 'solid'}
+        ],
+        enemies: [
+          {type: 'default', x: 600, y: groundY - 24, w: 24, h: 24, vx: 0.8, patrolLeft: 550, patrolRight: 750},
+          {type: 'facundo', x: 1400, y: groundY - 24, w: 24, h: 24, vx: -0.7, patrolLeft: 1350, patrolRight: 1500},
+          {type: 'martin', x: 2100, y: groundY - 24, w: 24, h: 24, vx: 0.6, patrolLeft: 2050, patrolRight: 2250},
+          {type: 'default', x: 3400, y: groundY - 24, w: 24, h: 24, vx: -0.9, patrolLeft: 3350, patrolRight: 3550},
+          {type: 'facundo', x: 4200, y: groundY - 24, w: 24, h: 24, vx: 0.7, patrolLeft: 4150, patrolRight: 4350}
         ]
       }
     ];
@@ -627,64 +674,5 @@
     // Iniciar
     requestAnimationFrame(step);
 
-    // --- Test Runner ----------------------------------------------------------
-    (function runTests(){
-      const log = (name, ok, err) => {
-        const line = (ok ? '✔️ ' : '❌ ') + name + (ok ? '' : ' -> ' + err);
-        UI.testsOut.textContent += '\n' + (ok ? line : line);
-        const span = document.createElement('span');
-        span.className = ok ? 'pass' : 'fail';
-        span.textContent = line;
-        UI.testsOut.appendChild(span);
-      };
-
-      function t(name, fn){
-        try { fn(); log(name, true); }
-        catch(e){ log(name, false, e.message || String(e)); }
-      }
-
-      // Tests mínimos de DOM/UI
-      t('Existe #coins', () => { if (!(UI.coins instanceof HTMLElement)) throw new Error('No existe #coins'); });
-      t('Existe #score', () => { if (!(UI.score instanceof HTMLElement)) throw new Error('No existe #score'); });
-      t('Existe barra de vuelo', () => { if (!(UI.flightBar instanceof HTMLElement)) throw new Error('No existe #flightBar'); });
-
-      // Test de actualización de texto segura
-      t('setText actualiza #coins sin errores', () => {
-        setText(UI.coins, '7');
-        if (UI.coins.textContent !== '7') throw new Error('textContent no coincide');
-      });
-
-      // Test de lógica de monedas -> UI
-      t('addCoins incrementa estado y HUD', () => {
-        const before = state.player.coins;
-        addCoins(1);
-        if (state.player.coins !== before + 1) throw new Error('Estado coins no incrementó');
-        if (UI.coins.textContent !== String(state.player.coins)) throw new Error('HUD coins no sincronizado');
-      });
-
-      // Test de límites de vuelo
-      t('clampFlight limita a [0, flightMax]', () => {
-        state.player.flight = -5; clampFlight();
-        if (state.player.flight !== 0) throw new Error('No limitó a 0');
-        state.player.flight = state.player.flightMax + 10; clampFlight();
-        if (state.player.flight !== state.player.flightMax) throw new Error('No limitó a flightMax');
-      });
-
-      // Test de loop (al menos un frame renderizado)
-      setTimeout(() => {
-        t('El loop de juego avanzó frames', () => {
-          if (state.frames <= 0) throw new Error('No se renderizó ningún frame');
-        });
-      }, 120);
-    })();
-
-    // Exponer utilidades en window para depurar en consola si lo deseas
-    window.__GAME__ = {
-      state,
-      resetGame,
-      setPlayerSprite: (opts) => {
-        Object.assign(state.sprite, opts || {});
-      }
-    };
   });
 })();

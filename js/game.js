@@ -50,6 +50,10 @@
     const groundY = H - 92;
     const skyY = 12; // techo lógico para no salir por arriba
 
+    // Factor de escala para todos los personajes y sprites
+    // Permite ajustar fácilmente el tamaño sin modificar las imágenes originales
+    const CHAR_SCALE = 1;
+
 
     const state = {
       running: false,

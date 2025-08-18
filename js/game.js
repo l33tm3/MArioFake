@@ -48,7 +48,7 @@
     // Subimos el suelo lógico para que el personaje quede más alto en pantalla
     const groundY = H - 85;
     const skyY = 12; // techo lógico para no salir por arriba
-    const CHAR_SCALE = 1.3;
+    const CHAR_SCALE = 2.9;
 
     const state = {
       running: false,
@@ -69,7 +69,7 @@
       },
       // La heroína se llama Daniela Velozo
       player: {
-        x: 120,
+        x: 10,
         y: groundY - Math.round(40 * CHAR_SCALE),
         w: Math.round(28 * CHAR_SCALE),
         h: Math.round(40 * CHAR_SCALE),
@@ -103,7 +103,7 @@
 
     const levels = [
       { // Nivel 1
-        worldWidth: 3200, endX: 3000,
+        worldWidth: 12000, endX: 12000,
         coins: [
           {x: 360, y: groundY - 120, r: 10}, {x: 520, y: groundY - 60, r: 10},
           {x: 780, y: groundY - 160, r: 10}, {x: 1200, y: groundY - 120, r: 10},
@@ -283,10 +283,10 @@
           let typeScale = 1;
           switch (e.type) {
             case 'martin':
-              typeScale = 2;
+              typeScale = 1;
               break;
             case 'facundo':
-              typeScale = 1.5;
+              typeScale = 0.9;
               break;
           }
           const finalScale = CHAR_SCALE * typeScale;

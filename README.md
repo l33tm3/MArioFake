@@ -36,6 +36,35 @@ __GAME__.setPlayerSprite({ cols: 4, rows: 3, frameW: 64, frameH: 64 });
 __GAME__.setPlayerSprite({ animations: { idle: [8], walk: [0,1,2,3] }, speed: 6 });
 ```
 
+### Sprites de personajes
+- Las carpetas dentro de `sprites/` (por ejemplo `daniela/`, `facundo/`, `martin/`) contienen sprites de prueba para otros personajes.
+- Cada carpeta incluye `1.png` y `2.png` como fotogramas base. Para integrarlos, agrega una carpeta con el mismo esquema o reemplaza los archivos existentes.
+- Ejemplo de carga desde JavaScript:
+
+```js
+const extra = new Image();
+extra.src = 'sprites/daniela/1.png';
+```
+
+### Audio
+- Pistas disponibles en `audio/`:
+  - `main.mp3` – tema principal del menú.
+  - `main2.mp3` – variante del tema principal.
+  - `chact-select.mp3` – pantalla de selección de personaje.
+  - `stage1.mp3` – música del primer nivel.
+  - `battle1.mp3` – combate estándar.
+  - `battle2.mp3` – combate alternativo.
+  - `boss1.mp3` – jefe intermedio.
+  - `boss2.mp3` – jefe final.
+- Puedes reemplazar los archivos manteniendo el mismo nombre o ajustar las rutas en el código para usar otros.
+- Ejemplo de carga:
+
+```js
+const music = new Audio('audio/main.mp3');
+music.loop = true;
+music.play();
+```
+
 ### Fondo (parallax)
 - Coloca tu imagen como `paisaje.png` (fallback automático a `paisaje.jpg`).
 - Parámetros ajustables en consola:

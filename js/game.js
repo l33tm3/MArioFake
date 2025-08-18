@@ -40,6 +40,12 @@
 
     const coinSound = new Audio('audio/coin-on.mp3');
 
+    // --- Sprites ------------------------------------------------------------
+    const coinImg = new Image();
+    coinImg.src = 'sprites/coin.png';
+    const blockImg = new Image();
+    blockImg.src = 'sprites/bloque.png';
+
     // --- Estado del juego ----------------------------------------------------
     const ctx = UI.canvas.getContext('2d', { alpha: false });
     // Mejor para pixel art
@@ -52,7 +58,7 @@
 
     // Factor de escala para todos los personajes y sprites
     // Permite ajustar fácilmente el tamaño sin modificar las imágenes originales
-    const CHAR_SCALE = 1;
+    const CHAR_SCALE = 1.5;
 
 
     const state = {
@@ -86,6 +92,7 @@
         score: 0,
         flight: 100,
         flightMax: 100,
+        flightCooldown: 0,
         flyPower: 0.5,      // empuje vertical por frame cuando vuela (más suave)
         gravity: 0.5,
         maxAscendSpeed: 3.2,
@@ -310,11 +317,12 @@
     }
 
     function resetPlayer() {
-      const p = state.player;
-      p.x = 120; p.y = groundY - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
-      p.flight = p.flightMax;
-      // El puntaje y monedas se mantienen entre niveles, no se resetean aquí
-    }
+        const p = state.player;
+        p.x = 120; p.y = groundY - p.h; p.vx = 0; p.vy = 0; p.onGround = true;
+        p.flight = p.flightMax;
+        p.flightCooldown = 0;
+        // El puntaje y monedas se mantienen entre niveles, no se resetean aquí
+      }
 
     function addCoins(n){
       state.player.coins += n;
@@ -366,26 +374,32 @@
       else if (state.keys.right && !state.keys.left) p.facing = 1;
 
       // Saltar
-      if (state.keys.jump && p.onGround){
+        if (state.keys.jump && p.onGround){
         p.vy = -p.jump;
         p.onGround = false;
       }
 
       // Gravedad + vuelo
-      if (!p.onGround){
-        // Volar (planear/aletear) si queda energía
-        if (state.keys.jump && p.flight > 0){
-          p.vy -= p.flyPower;    // empuje hacia arriba
-          p.flight -= 0.6;       // gasta energía
+        if (!p.onGround){
+          // Volar (planear/aletear) si queda energía y no está en cooldown
+          if (state.keys.jump && p.flight > 0 && p.flightCooldown === 0){
+            p.vy -= p.flyPower;    // empuje hacia arriba
+            p.flight -= 0.6;       // gasta energía
+            if (p.flight <= 0){
+              p.flight = 0;
+              p.flightCooldown = 120;
+            }
+          }
+          p.vy += p.gravity;       // gravedad
+          // Limitar velocidad vertical ascendente
+          if (p.vy < -p.maxAscendSpeed) p.vy = -p.maxAscendSpeed;
         }
-        p.vy += p.gravity;       // gravedad
-        // Limitar velocidad vertical ascendente
-        if (p.vy < -p.maxAscendSpeed) p.vy = -p.maxAscendSpeed;
-      }
 
-      // Movimiento
-      p.x += p.vx;
-      p.y += p.vy;
+        // Movimiento
+        const oldX = p.x;
+        const oldY = p.y;
+        p.x += p.vx;
+        p.y += p.vy;
 
       // Límites del mundo
       p.x = clamp(p.x, 0, state.worldWidth - p.w);
@@ -406,39 +420,34 @@
       }
 
       // Recarga de vuelo en el suelo
-      if (p.onGround){
-        p.flight += 0.8;
-        clampFlight();
-      }
-      updateFlightUI();
+        if (p.onGround){
+          if (p.flightCooldown > 0){
+            p.flightCooldown--;
+          } else {
+            p.flight += 0.8;
+            clampFlight();
+          }
+        }
+        updateFlightUI();
 
-      // Colisiones con plataformas y bloques (tope superior sencillo)
+      // Colisiones con plataformas y bloques
       const solids = state.platforms.concat(state.blocks);
       for (const s of solids){
         if (rectsOverlap(p.x, p.y, p.w, p.h, s.x, s.y, s.w, s.h)){
-          // Cae desde arriba
-          if (p.vy >= 0 && p.y + p.h - p.vy <= s.y){
+          if (oldX + p.w <= s.x){
+            p.x = s.x - p.w;
+          } else if (oldX >= s.x + s.w){
+            p.x = s.x + s.w;
+          } else if (oldY + p.h <= s.y){
             p.y = s.y - p.h;
             p.vy = 0;
             p.onGround = true;
-          }
-        }
-      }
-
-      // Golpe desde abajo a bloques
-      if (p.vy < 0){
-        for (const b of state.blocks){
-          if (rectsOverlap(p.x, p.y, p.w, p.h, b.x, b.y, b.w, b.h)){
-            if (p.y <= b.y + b.h && p.y + p.h >= b.y + b.h){
-              // Reposicionar debajo del bloque y cancelar salto
-              p.y = b.y + b.h;
-              p.vy = 0;
-              // Interacciones
-              if (b.type === 'question' && b.state !== 'empty'){
-                addCoins(1);
-                b.state = 'empty';
-              }
-              // Los ladrillos quedan sólidos sin romperse en esta versión
+          } else if (oldY >= s.y + s.h){
+            p.y = s.y + s.h;
+            p.vy = 0;
+            if (s.type === 'question' && s.state !== 'empty'){
+              addCoins(1);
+              s.state = 'empty';
             }
           }
         }
@@ -550,12 +559,20 @@
       for (const b of state.blocks){
         const vx = Math.round(b.x - camX);
         if (vx + b.w < 0 || vx > W) continue;
-        if (b.type === 'question'){
-          ctx.fillStyle = (b.state === 'empty') ? '#5c5c5c' : '#d4a133';
+        if (blockImg.complete){
+          ctx.drawImage(blockImg, vx, b.y, b.w, b.h);
+          if (b.type === 'question' && b.state === 'empty'){
+            ctx.fillStyle = '#5c5c5c';
+            ctx.fillRect(vx, b.y, b.w, b.h);
+          }
         } else {
-          ctx.fillStyle = '#8d6e63';
+          if (b.type === 'question'){
+            ctx.fillStyle = (b.state === 'empty') ? '#5c5c5c' : '#d4a133';
+          } else {
+            ctx.fillStyle = '#8d6e63';
+          }
+          ctx.fillRect(vx, b.y, b.w, b.h);
         }
-        ctx.fillRect(vx, b.y, b.w, b.h);
       }
 
       // Monedas
@@ -563,12 +580,16 @@
         if (!c.taken){
           const vx = Math.round(c.x - camX);
           if (vx + c.r < 0 || vx - c.r > W) continue;
-          ctx.beginPath();
-          ctx.arc(vx, c.y, c.r, 0, Math.PI*2);
-          ctx.fillStyle = '#f4d03f';
-          ctx.fill();
-          ctx.strokeStyle = '#c9a227';
-          ctx.stroke();
+          if (coinImg.complete){
+            ctx.drawImage(coinImg, vx - c.r, c.y - c.r, c.r * 2, c.r * 2);
+          } else {
+            ctx.beginPath();
+            ctx.arc(vx, c.y, c.r, 0, Math.PI*2);
+            ctx.fillStyle = '#f4d03f';
+            ctx.fill();
+            ctx.strokeStyle = '#c9a227';
+            ctx.stroke();
+          }
         }
       }
 

@@ -31,6 +31,10 @@ Juego en HTML5 Canvas con scroll lateral, bloques interactivos, enemigos simples
   - Idle: `8` (fila 2, columna 0)
 - Puedes ajustar en tiempo real desde la consola del navegador:
 
+```js
+__GAME__.setPlayerSprite({ cols: 4, rows: 3, frameW: 64, frameH: 64 });
+__GAME__.setPlayerSprite({ animations: { idle: [8], walk: [0,1,2,3] }, speed: 6 });
+```
 
 ### Sprites de personajes
 - Las carpetas dentro de `sprites/` (por ejemplo `daniela/`, `facundo/`, `martin/`) contienen sprites de prueba para otros personajes.
@@ -63,9 +67,17 @@ music.play();
 
 ### Fondo (parallax)
 - Coloca tu imagen como `paisaje.png` (fallback automático a `paisaje.jpg`).
+- Parámetros ajustables en consola:
+
+```js
+__GAME__.state.bg.speed = 0.35;
+const bg = __GAME__.state.bg;
+bg.tileW = Math.ceil(bg.image.naturalWidth * bg.scale);
+bg.tileH = Math.ceil(bg.image.naturalHeight * bg.scale);
+```
 
 ### Física y vuelo
-- Parámetros principales (en `js/game.js` dentro de `state.player`): `gravity`, `jump`, `flyPower`, `maxAscendSpeed`.
+- Parámetros principales (accesibles con `__GAME__.state.player`): `gravity`, `jump`, `flyPower`, `maxAscendSpeed`.
 - Energía de vuelo: `flight`, `flightMax` (se muestra en HUD y se recarga en el suelo).
 
 ### Estructura
@@ -78,6 +90,12 @@ music.play();
 
 ### Desarrollo
 1) Edita `index.html` y recarga el navegador.
+2) Usa `window.__GAME__` para depurar:
+
+```js
+__GAME__.state;        // estado completo
+__GAME__.resetGame();  // reiniciar
+```
 
 ### ¿Por qué considerar un motor de juego?
 Si el proyecto crece, migrar a un motor especializado puede aportar:

@@ -12,6 +12,10 @@ canvas {
   height:auto;
   max-width:940px;
 }
+.tests { padding:10px 14px; background:#0f0f0f; border-top:1px solid #2a2a2a; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.tests b { color:#9cdcfe; }
+.pass { color:#8bc34a; }
+.fail { color:#ff6e6e; }
 .hint { opacity:.8; font-size:.95em; }
 .menu { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; text-align:center; }
 .menu h1 { font-size:3.5em; margin-bottom:10px; text-shadow: 2px 2px 4px #000; }

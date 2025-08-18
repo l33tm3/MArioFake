@@ -46,8 +46,10 @@
     ctx.imageSmoothingEnabled = false;
     const W = UI.canvas.width, H = UI.canvas.height;
     // Subimos el suelo lógico para que el personaje quede más alto en pantalla
-    const groundY = H - 85;
+    // Ajustado para que Daniela y los enemigos queden a nivel de la acera
+    const groundY = H - 92;
     const skyY = 12; // techo lógico para no salir por arriba
+    const CHAR_SCALE = 1.3;
 
     const state = {
       running: false,
@@ -68,7 +70,10 @@
       },
       // La heroína se llama Daniela Velozo
       player: {
-        x: 120, y: groundY - 40, w: 28, h: 40,
+        x: 120,
+        y: groundY - Math.round(40 * CHAR_SCALE),
+        w: Math.round(28 * CHAR_SCALE),
+        h: Math.round(40 * CHAR_SCALE),
         vx: 0, vy: 0,
         speed: 2.0,
         onGround: true,
@@ -276,6 +281,19 @@
       // Guardar estado inicial para reseteos
       state.blocks.forEach(b => b.initState = b.state);
       state.enemies.forEach(e => {
+          let typeScale = 1;
+          switch (e.type) {
+            case 'martin':
+              typeScale = 2;
+              break;
+            case 'facundo':
+              typeScale = 1.5;
+              break;
+          }
+          const finalScale = CHAR_SCALE * typeScale;
+          e.w = Math.round(e.w * finalScale);
+          e.h = Math.round(e.h * finalScale);
+          e.y = groundY - e.h;
           e.sx = e.x;
           e.sy = e.y;
           e.svx = e.vx;
@@ -577,33 +595,15 @@
       for (const e of state.enemies){
         if (!e.alive) continue;
         const vx = Math.round(e.x - camX);
-
-        // Ajustar tamaño según tipo
-        let width = e.w;
-        let height = e.h;
-        switch (e.type) {
-          case 'martin':
-            width = 48;
-            height = 48;
-            break;
-          case 'facundo':
-            width = 36;
-            height = 36;
-            break;
-        }
-
-        if (vx + width < 0 || vx > W) continue;
-
-        // Usar 'y' ajustada para que los enemigos más grandes sigan en el suelo
-        const adjustedY = e.y - (height - e.h);
+        if (vx + e.w < 0 || vx > W) continue;
 
         const imgs = state.enemySprites[e.type];
         const img = imgs ? imgs[e.frameIndex] : null;
         if (img && img.complete) {
-          ctx.drawImage(img, vx, adjustedY, width, height);
+          ctx.drawImage(img, vx, e.y, e.w, e.h);
         } else {
           ctx.fillStyle = '#e57373';
-          ctx.fillRect(vx, adjustedY, width, height);
+          ctx.fillRect(vx, e.y, e.w, e.h);
         }
       }
 

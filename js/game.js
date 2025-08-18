@@ -46,9 +46,10 @@
     ctx.imageSmoothingEnabled = false;
     const W = UI.canvas.width, H = UI.canvas.height;
     // Subimos el suelo lógico para que el personaje quede más alto en pantalla
-    const groundY = H - 85;
+    // Ajustado para que Daniela y los enemigos queden a nivel de la acera
+    const groundY = H - 92;
     const skyY = 12; // techo lógico para no salir por arriba
-    const CHAR_SCALE = 2.9;
+
 
     const state = {
       running: false,
@@ -69,7 +70,7 @@
       },
       // La heroína se llama Daniela Velozo
       player: {
-        x: 10,
+
         y: groundY - Math.round(40 * CHAR_SCALE),
         w: Math.round(28 * CHAR_SCALE),
         h: Math.round(40 * CHAR_SCALE),
@@ -283,10 +284,7 @@
           let typeScale = 1;
           switch (e.type) {
             case 'martin':
-              typeScale = 1;
-              break;
-            case 'facundo':
-              typeScale = 0.9;
+
               break;
           }
           const finalScale = CHAR_SCALE * typeScale;
